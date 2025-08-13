@@ -40,9 +40,6 @@ void test_lexer(const char* input) {
 }
 
 int main() {
-    printf("Func Programming Language Lexer Test\n");
-    printf("=====================================\n\n");
-    
     // Test 1: Basic function definition
     test_lexer("let add = func(int x, int y) -> int { x + y }");
     
