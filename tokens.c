@@ -3,6 +3,17 @@
 #include <stdlib.h>
 #include <string.h>
 
+static char* string_duplicate(const char* str) {
+    if (!str) return NULL;
+    
+    size_t len = strlen(str);
+    char* dup = malloc(len + 1);
+    if (!dup) return NULL;
+    
+    strcpy(dup, str);
+    return dup;
+}
+
 const char* token_type_string(TokenType type) {
     switch (type) {
         case TOKEN_IDENTIFIER: return "IDENTIFIER";
@@ -13,7 +24,8 @@ const char* token_type_string(TokenType type) {
         case TOKEN_BOOL_FALSE: return "FALSE";
         
         case TOKEN_LET: return "LET";
-        case TOKEN_FN: return "FUNC";
+        case TOKEN_CONST: return "CONST";
+        case TOKEN_FUNC: return "FUNC";
         case TOKEN_IF: return "IF";
         case TOKEN_ELSE: return "ELSE";
         case TOKEN_MATCH: return "MATCH";
@@ -67,7 +79,7 @@ Token* token_new(TokenType type, const char* literal, int line, int column) {
     if (!token) return NULL;
     
     token->type = type;
-    token->literal = strdup(literal);
+    token->literal = string_duplicate(literal);
     token->line = line;
     token->column = column;
     token->length = strlen(literal);
