@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-
 static void parser_next_token(Parser* parser);
 static Statement* parser_parse_statement(Parser* parser);
 static Statement* parser_parse_let_statement(Parser* parser);
@@ -32,7 +31,6 @@ static int parser_current_token_is(Parser* parser, TokenType token_type);
 static int parser_peek_token_is(Parser* parser, TokenType token_type);
 static int parser_expect_peek(Parser* parser, TokenType token_type);
 
-
 static char* string_duplicate(const char* str) {
     if (!str) return NULL;
     
@@ -54,7 +52,6 @@ Parser* parser_new(Lexer* lexer) {
     parser->errors = malloc(sizeof(char*) * 10);
     parser->error_count = 0;
     parser->error_capacity = 10;
-    
     
     parser_next_token(parser);
     parser_next_token(parser);
@@ -105,7 +102,6 @@ Program* parser_parse_program(Parser* parser) {
     if (!program) return NULL;
     
     while (parser->current_token->type != TOKEN_EOF) {
-        
         if (parser->current_token->type == TOKEN_NEWLINE) {
             parser_next_token(parser);
             continue;
@@ -129,12 +125,27 @@ static Statement* parser_parse_statement(Parser* parser) {
             return parser_parse_const_statement(parser);
         case TOKEN_RETURN:
             return parser_parse_return_statement(parser);
+        case TOKEN_LBRACE:
+            {
+                Token* brace_token = parser->current_token;
+                int stmt_count;
+                Statement** stmts = parser_parse_block_statement(parser, &stmt_count);
+                return statement_new_block(stmts, stmt_count, brace_token->line, brace_token->column);
+            }  
         default:
             return parser_parse_expression_statement(parser);
     }
 }
 
 static Statement* parser_parse_let_statement(Parser* parser) {
+    Token* let_token = parser->current_token;
+    int is_mutable = 0;
+    
+    if (parser_peek_token_is(parser, TOKEN_IDENTIFIER) && strcmp(parser->peek_token->literal, "mut") == 0) {
+        is_mutable = 1;
+        parser_next_token(parser);
+    }
+
     if (!parser_expect_peek(parser, TOKEN_IDENTIFIER)) {
         return NULL;
     }
@@ -142,37 +153,43 @@ static Statement* parser_parse_let_statement(Parser* parser) {
     char* name = string_duplicate(parser->current_token->literal);
     Type* type = NULL;
     
-    
     if (parser_peek_token_is(parser, TOKEN_COLON)) {
         parser_next_token(parser); 
         parser_next_token(parser); 
         type = parser_parse_type(parser);
     }
     
-    if (!parser_expect_peek(parser, TOKEN_ASSIGN)) {
-        free(name);
-        if (type) type_free(type);
-        return NULL;
+    Expression* value = NULL;
+
+    if (parser_peek_token_is(parser, TOKEN_ASSIGN)) {
+        parser_next_token(parser);
+        parser_next_token(parser);
+        value = parser_parse_expression(parser, PRECEDENCE_LOWEST);
     }
-    
-    parser_next_token(parser);
-    Expression* value = parser_parse_expression(parser, PRECEDENCE_LOWEST);
-    
+
     if (parser_peek_token_is(parser, TOKEN_SEMICOLON)) {
         parser_next_token(parser);
     }
     
-    return statement_new_let(name, type, value, 0); 
+    return statement_new_let(name, type, value, !is_mutable, let_token->line, let_token->column);
 }
 
 static Statement* parser_parse_const_statement(Parser* parser) {
+    Token* const_token = parser->current_token;
+    
+    if (parser_peek_token_is(parser, TOKEN_IDENTIFIER) && strcmp(parser->peek_token->literal, "mut") == 0) {
+        char error_msg[256];
+        snprintf(error_msg, sizeof(error_msg), "Cannot use 'mut' with 'const'. Constants are always immutable.");
+        parser_add_error(parser, error_msg);
+        return NULL;
+    }
+
     if (!parser_expect_peek(parser, TOKEN_IDENTIFIER)) {
         return NULL;
     }
     
     char* name = string_duplicate(parser->current_token->literal);
     Type* type = NULL;
-    
     
     if (parser_peek_token_is(parser, TOKEN_COLON)) {
         parser_next_token(parser); 
@@ -193,10 +210,11 @@ static Statement* parser_parse_const_statement(Parser* parser) {
         parser_next_token(parser);
     }
     
-    return statement_new_let(name, type, value, 1); 
+    return statement_new_let(name, type, value, 1, const_token->line, const_token->column);
 }
 
 static Statement* parser_parse_return_statement(Parser* parser) {
+    Token* return_token = parser->current_token;
     parser_next_token(parser);
     
     Expression* return_value = parser_parse_expression(parser, PRECEDENCE_LOWEST);
@@ -205,21 +223,21 @@ static Statement* parser_parse_return_statement(Parser* parser) {
         parser_next_token(parser);
     }
     
-    return statement_new_return(return_value);
+    return statement_new_return(return_value, return_token->line, return_token->column);
 }
 
 static Statement* parser_parse_expression_statement(Parser* parser) {
+    Token* start_token = parser->current_token;
     Expression* expr = parser_parse_expression(parser, PRECEDENCE_LOWEST);
     
     if (parser_peek_token_is(parser, TOKEN_SEMICOLON)) {
         parser_next_token(parser);
     }
     
-    return statement_new_expression(expr);
+    return statement_new_expression(expr, start_token->line, start_token->column);
 }
 
 static Expression* parser_parse_expression(Parser* parser, Precedence precedence) {
-    
     Expression* left = NULL;
     
     switch (parser->current_token->type) {
@@ -241,6 +259,9 @@ static Expression* parser_parse_expression(Parser* parser, Precedence precedence
             break;
         case TOKEN_NOT:
         case TOKEN_MINUS:
+        case TOKEN_REF:
+        case TOKEN_MUT_REF:
+        case TOKEN_MULTIPLY:
             left = parser_parse_prefix_expression(parser);
             break;
         case TOKEN_LPAREN:
@@ -265,10 +286,7 @@ static Expression* parser_parse_expression(Parser* parser, Precedence precedence
             }
     }
     
-    
-    while (!parser_peek_token_is(parser, TOKEN_SEMICOLON) && 
-           precedence < parser_get_precedence(parser->peek_token->type)) {
-        
+    while (!parser_peek_token_is(parser, TOKEN_SEMICOLON) && precedence < parser_get_precedence(parser->peek_token->type)) {
         switch (parser->peek_token->type) {
             case TOKEN_PLUS:
             case TOKEN_MINUS:
@@ -283,15 +301,17 @@ static Expression* parser_parse_expression(Parser* parser, Precedence precedence
             case TOKEN_GREATER_EQUAL:
             case TOKEN_AND:
             case TOKEN_OR:
+            case TOKEN_ASSIGN:
                 parser_next_token(parser);
                 left = parser_parse_infix_expression(parser, left);
                 break;
             case TOKEN_PIPE:
-                parser_next_token(parser);
-                parser_next_token(parser);
                 {
+                    Token* pipe_token = parser->peek_token;
+                    parser_next_token(parser);
+                    parser_next_token(parser);
                     Expression* right = parser_parse_expression(parser, PRECEDENCE_PIPE);
-                    left = expression_new_pipe(left, right);
+                    left = expression_new_pipe(left, right, pipe_token->line, pipe_token->column);
                 }
                 break;
             case TOKEN_LPAREN:
@@ -306,43 +326,49 @@ static Expression* parser_parse_expression(Parser* parser, Precedence precedence
     return left;
 }
 
-
 static Expression* parser_parse_boolean_literal(Parser* parser) {
+    Token* token = parser->current_token;
     int value = (parser->current_token->type == TOKEN_BOOL_TRUE) ? 1 : 0;
-    return expression_new_boolean_literal(value);
+    return expression_new_boolean_literal(value, token->line, token->column);
 }
 
 static Expression* parser_parse_identifier(Parser* parser) {
-    return expression_new_identifier(string_duplicate(parser->current_token->literal));
+    Token* token = parser->current_token;
+    return expression_new_identifier(string_duplicate(parser->current_token->literal), token->line, token->column);
 }
 
 static Expression* parser_parse_integer_literal(Parser* parser) {
+    Token* token = parser->current_token;
     int value = atoi(parser->current_token->literal);
-    return expression_new_integer_literal(value);
+    return expression_new_integer_literal(value, token->line, token->column);
 }
 
 static Expression* parser_parse_float_literal(Parser* parser) {
+    Token* token = parser->current_token;
     double value = atof(parser->current_token->literal);
-    return expression_new_float_literal(value);
+    return expression_new_float_literal(value, token->line, token->column);
 }
 
 static Expression* parser_parse_string_literal(Parser* parser) {
-    return expression_new_string_literal(string_duplicate(parser->current_token->literal));
+    Token* token = parser->current_token;
+    return expression_new_string_literal(string_duplicate(parser->current_token->literal), token->line, token->column);
 }
 
 static Expression* parser_parse_prefix_expression(Parser* parser) {
+    Token* operator_token = parser->current_token;
     char* operator = string_duplicate(parser->current_token->literal);
     parser_next_token(parser);
     Expression* right = parser_parse_expression(parser, PRECEDENCE_PREFIX);
-    return expression_new_prefix(operator, right);
+    return expression_new_prefix(operator, right, operator_token->line, operator_token->column);
 }
 
 static Expression* parser_parse_infix_expression(Parser* parser, Expression* left) {
+    Token* operator_token = parser->current_token;
     char* operator = string_duplicate(parser->current_token->literal);
     Precedence precedence = parser_get_precedence(parser->current_token->type);
     parser_next_token(parser);
     Expression* right = parser_parse_expression(parser, precedence);
-    return expression_new_infix(left, operator, right);
+    return expression_new_infix(left, operator, right, operator_token->line, operator_token->column);
 }
 
 static Expression* parser_parse_grouped_expression(Parser* parser) {
@@ -357,6 +383,8 @@ static Expression* parser_parse_grouped_expression(Parser* parser) {
 }
 
 static Expression* parser_parse_if_expression(Parser* parser) {
+    Token* if_token = parser->current_token;
+    
     if (!parser_expect_peek(parser, TOKEN_LPAREN)) {
         return NULL;
     }
@@ -386,10 +414,12 @@ static Expression* parser_parse_if_expression(Parser* parser) {
         else_branch = parser_parse_block_statement(parser, &else_count);
     }
     
-    return expression_new_if(condition, then_branch, then_count, else_branch, else_count);
+    return expression_new_if(condition, then_branch, then_count, else_branch, else_count, if_token->line, if_token->column);
 }
 
 static Expression* parser_parse_function_literal(Parser* parser) {
+    Token* func_token = parser->current_token;
+    
     if (!parser_expect_peek(parser, TOKEN_LPAREN)) {
         return NULL;
     }
@@ -411,12 +441,12 @@ static Expression* parser_parse_function_literal(Parser* parser) {
     int body_count;
     Statement** body = parser_parse_block_statement(parser, &body_count);
     
-    return expression_new_function_literal(parameters, param_count, return_type, body, body_count);
+    return expression_new_function_literal(parameters, param_count, return_type, body, body_count, func_token->line, func_token->column);
 }
-
 
 static Precedence parser_get_precedence(TokenType token_type) {
     switch (token_type) {
+        case TOKEN_ASSIGN: return PRECEDENCE_ASSIGN;
         case TOKEN_PIPE: return PRECEDENCE_PIPE;
         case TOKEN_OR: return PRECEDENCE_OR;
         case TOKEN_AND: return PRECEDENCE_AND;
@@ -450,22 +480,20 @@ static int parser_expect_peek(Parser* parser, TokenType token_type) {
         return 1;
     } else {
         char error_msg[256];
-        snprintf(error_msg, sizeof(error_msg), "expected next token to be %s, got %s instead",
-                token_type_string(token_type), token_type_string(parser->peek_token->type));
+        snprintf(error_msg, sizeof(error_msg), "expected next token to be %s, got %s instead", token_type_string(token_type), token_type_string(parser->peek_token->type));
         parser_add_error(parser, error_msg);
         return 0;
     }
 }
 
-
 static Expression* parser_parse_call_expression(Parser* parser, Expression* function) {
+    Token* lparen_token = parser->current_token;
     int arg_count;
     Expression** arguments = parser_parse_call_arguments(parser, &arg_count);
-    return expression_new_call(function, arguments, arg_count);
+    return expression_new_call(function, arguments, arg_count, lparen_token->line, lparen_token->column);
 }
 
 static Expression* parser_parse_match_expression(Parser* parser) {
-    
     parser_add_error(parser, "match expressions not yet implemented");
     return NULL;
 }
@@ -486,7 +514,6 @@ static Parameter** parser_parse_function_parameters(Parser* parser, int* param_c
     parser_next_token(parser);
     
     do {
-        
         Type* type = parser_parse_type(parser);
         if (!parser_expect_peek(parser, TOKEN_IDENTIFIER)) {
             return parameters;
@@ -544,7 +571,6 @@ static Statement** parser_parse_block_statement(Parser* parser, int* stmt_count)
     
     while (!parser_current_token_is(parser, TOKEN_RBRACE) && 
            !parser_current_token_is(parser, TOKEN_EOF)) {
-        
         
         if (parser->current_token->type == TOKEN_NEWLINE) {
             parser_next_token(parser);

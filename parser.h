@@ -6,6 +6,7 @@
 
 typedef enum {
     PRECEDENCE_LOWEST = 1,
+    PRECEDENCE_ASSIGN,
     PRECEDENCE_PIPE,       
     PRECEDENCE_OR,         
     PRECEDENCE_AND,        

@@ -120,8 +120,15 @@ Token* lexer_next_token(Lexer* lexer) {
             tok = token_new(TOKEN_MULTIPLY, "*", lexer->line, lexer->column);
             break;
             
-        case '/':
-            tok = token_new(TOKEN_DIVIDE, "/", lexer->line, lexer->column);
+            case '/':
+            if (lexer_peek_char(lexer) == '/') {
+                while (lexer->ch != '\n' && lexer->ch != 0) {
+                    lexer_read_char(lexer);
+                }
+                return lexer_next_token(lexer);
+            } else {
+                tok = token_new(TOKEN_DIVIDE, "/", lexer->line, lexer->column);
+            }
             break;
             
         case '%':
@@ -173,7 +180,7 @@ Token* lexer_next_token(Lexer* lexer) {
             }
             break;
             
-        case '&':
+            case '&':
             if (lexer_peek_char(lexer) == '&') {
                 char ch = lexer->ch;
                 lexer_read_char(lexer);
@@ -183,8 +190,16 @@ Token* lexer_next_token(Lexer* lexer) {
                 literal[2] = '\0';
                 tok = token_new(TOKEN_AND, literal, lexer->line, lexer->column - 1);
                 free(literal);
+            } else if (strncmp(lexer->input + lexer->position, "&mut", 4) == 0 && 
+                       !is_letter(lexer->input[lexer->position + 4])) {
+                tok = token_new(TOKEN_MUT_REF, "&mut", lexer->line, lexer->column);
+                lexer_read_char(lexer);
+                lexer_read_char(lexer);              
+                lexer_read_char(lexer);
+                lexer_read_char(lexer);
+                return tok;
             } else {
-                tok = token_new(TOKEN_ILLEGAL, "&", lexer->line, lexer->column);
+                tok = token_new(TOKEN_REF, "&", lexer->line, lexer->column);
             }
             break;
             

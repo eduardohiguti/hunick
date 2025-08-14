@@ -43,8 +43,10 @@ typedef enum {
     TOKEN_OR,          		
     TOKEN_NOT,         		
     TOKEN_ARROW,       		
-    TOKEN_PIPE,        		
-    
+    TOKEN_PIPE,  
+
+    TOKEN_REF,
+    TOKEN_MUT_REF,      		
     
     TOKEN_SEMICOLON,   		
     TOKEN_COMMA,       		

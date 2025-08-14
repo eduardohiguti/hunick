@@ -33,11 +33,13 @@ void program_add_statement(Program* program, Statement* stmt) {
     program->statement_count++;
 }
 
-Statement* statement_new_let(char* name, Type* type, Expression* value, int is_const) {
+Statement* statement_new_let(char* name, Type* type, Expression* value, int is_const, int line, int column) {
     Statement* stmt = malloc(sizeof(Statement));
     if (!stmt) return NULL;
     
     stmt->node_type = STMT_LET;
+    stmt->line = line;
+    stmt->column = column;
     stmt->data.let_stmt.name = name;
     stmt->data.let_stmt.type = type;
     stmt->data.let_stmt.value = value;
@@ -46,22 +48,39 @@ Statement* statement_new_let(char* name, Type* type, Expression* value, int is_c
     return stmt;
 }
 
-Statement* statement_new_return(Expression* return_value) {
+Statement* statement_new_return(Expression* return_value, int line, int column) {
     Statement* stmt = malloc(sizeof(Statement));
     if (!stmt) return NULL;
     
     stmt->node_type = STMT_RETURN;
+    stmt->line = line;
+    stmt->column = column;
     stmt->data.return_stmt.return_value = return_value;
     
     return stmt;
 }
 
-Statement* statement_new_expression(Expression* expression) {
+Statement* statement_new_expression(Expression* expression, int line, int column) {
     Statement* stmt = malloc(sizeof(Statement));
     if (!stmt) return NULL;
     
     stmt->node_type = STMT_EXPRESSION;
+    stmt->line = line;
+    stmt->column = column;
     stmt->data.expression_stmt.expression = expression;
+    
+    return stmt;
+}
+
+Statement* statement_new_block(Statement** statements, int statement_count, int line, int column) {
+    Statement* stmt = malloc(sizeof(Statement));
+    if (!stmt) return NULL;
+    
+    stmt->node_type = STMT_BLOCK;
+    stmt->line = line;
+    stmt->column = column;
+    stmt->data.block_stmt.statements = statements;
+    stmt->data.block_stmt.statement_count = statement_count;
     
     return stmt;
 }
@@ -84,67 +103,85 @@ void statement_free(Statement* stmt) {
             if (stmt->data.expression_stmt.expression) 
                 expression_free(stmt->data.expression_stmt.expression);
             break;
+        case STMT_BLOCK:
+            for (int i = 0; i < stmt->data.block_stmt.statement_count; i++) {
+                statement_free(stmt->data.block_stmt.statements[i]);
+            }
+            free(stmt->data.block_stmt.statements);
+            break;
         default:
             break;
     }
     free(stmt);
 }
 
-Expression* expression_new_identifier(char* value) {
+Expression* expression_new_identifier(char* value, int line, int column) {
     Expression* expr = malloc(sizeof(Expression));
     if (!expr) return NULL;
     
     expr->node_type = EXPR_IDENTIFIER;
+    expr->line = line;
+    expr->column = column;
     expr->data.identifier.value = value;
     
     return expr;
 }
 
-Expression* expression_new_integer_literal(int value) {
+Expression* expression_new_integer_literal(int value, int line, int column) {
     Expression* expr = malloc(sizeof(Expression));
     if (!expr) return NULL;
     
     expr->node_type = EXPR_INTEGER_LITERAL;
+    expr->line = line;
+    expr->column = column;
     expr->data.integer_literal.value = value;
     
     return expr;
 }
 
-Expression* expression_new_float_literal(double value) {
+Expression* expression_new_float_literal(double value, int line, int column) {
     Expression* expr = malloc(sizeof(Expression));
     if (!expr) return NULL;
     
     expr->node_type = EXPR_FLOAT_LITERAL;
+    expr->line = line;
+    expr->column = column;
     expr->data.float_literal.value = value;
     
     return expr;
 }
 
-Expression* expression_new_string_literal(char* value) {
+Expression* expression_new_string_literal(char* value, int line, int column) {
     Expression* expr = malloc(sizeof(Expression));
     if (!expr) return NULL;
     
     expr->node_type = EXPR_STRING_LITERAL;
+    expr->line = line;
+    expr->column = column;
     expr->data.string_literal.value = value;
     
     return expr;
 }
 
-Expression* expression_new_boolean_literal(int value) {
+Expression* expression_new_boolean_literal(int value, int line, int column) {
     Expression* expr = malloc(sizeof(Expression));
     if (!expr) return NULL;
     
     expr->node_type = EXPR_BOOLEAN_LITERAL;
+    expr->line = line;
+    expr->column = column;
     expr->data.boolean_literal.value = value;
     
     return expr;
 }
 
-Expression* expression_new_function_literal(Parameter** params, int param_count, Type* return_type, Statement** body, int body_count) {
+Expression* expression_new_function_literal(Parameter** params, int param_count, Type* return_type, Statement** body, int body_count, int line, int column) {
     Expression* expr = malloc(sizeof(Expression));
     if (!expr) return NULL;
     
     expr->node_type = EXPR_FUNCTION_LITERAL;
+    expr->line = line;
+    expr->column = column;
     expr->data.function_literal.parameters = params;
     expr->data.function_literal.parameter_count = param_count;
     expr->data.function_literal.return_type = return_type;
@@ -154,11 +191,13 @@ Expression* expression_new_function_literal(Parameter** params, int param_count,
     return expr;
 }
 
-Expression* expression_new_call(Expression* function, Expression** arguments, int argument_count) {
+Expression* expression_new_call(Expression* function, Expression** arguments, int argument_count, int line, int column) {
     Expression* expr = malloc(sizeof(Expression));
     if (!expr) return NULL;
     
     expr->node_type = EXPR_CALL;
+    expr->line = line;
+    expr->column = column;
     expr->data.call.function = function;
     expr->data.call.arguments = arguments;
     expr->data.call.argument_count = argument_count;
@@ -166,11 +205,13 @@ Expression* expression_new_call(Expression* function, Expression** arguments, in
     return expr;
 }
 
-Expression* expression_new_infix(Expression* left, char* operator, Expression* right) {
+Expression* expression_new_infix(Expression* left, char* operator, Expression* right, int line, int column) {
     Expression* expr = malloc(sizeof(Expression));
     if (!expr) return NULL;
     
     expr->node_type = EXPR_INFIX;
+    expr->line = line;
+    expr->column = column;
     expr->data.infix.left = left;
     expr->data.infix.operator = operator;
     expr->data.infix.right = right;
@@ -178,22 +219,26 @@ Expression* expression_new_infix(Expression* left, char* operator, Expression* r
     return expr;
 }
 
-Expression* expression_new_prefix(char* operator, Expression* right) {
+Expression* expression_new_prefix(char* operator, Expression* right, int line, int column) {
     Expression* expr = malloc(sizeof(Expression));
     if (!expr) return NULL;
     
     expr->node_type = EXPR_PREFIX;
+    expr->line = line;
+    expr->column = column;
     expr->data.prefix.operator = operator;
     expr->data.prefix.right = right;
     
     return expr;
 }
 
-Expression* expression_new_if(Expression* condition, Statement** then_branch, int then_count, Statement** else_branch, int else_count) {
+Expression* expression_new_if(Expression* condition, Statement** then_branch, int then_count, Statement** else_branch, int else_count, int line, int column) {
     Expression* expr = malloc(sizeof(Expression));
     if (!expr) return NULL;
     
     expr->node_type = EXPR_IF;
+    expr->line = line;
+    expr->column = column;
     expr->data.if_expr.condition = condition;
     expr->data.if_expr.then_branch = then_branch;
     expr->data.if_expr.then_count = then_count;
@@ -203,11 +248,13 @@ Expression* expression_new_if(Expression* condition, Statement** then_branch, in
     return expr;
 }
 
-Expression* expression_new_match(Expression* expression, MatchCase** cases, int case_count) {
+Expression* expression_new_match(Expression* expression, MatchCase** cases, int case_count, int line, int column) {
     Expression* expr = malloc(sizeof(Expression));
     if (!expr) return NULL;
     
     expr->node_type = EXPR_MATCH;
+    expr->line = line;
+    expr->column = column;
     expr->data.match.expression = expression;
     expr->data.match.cases = cases;
     expr->data.match.case_count = case_count;
@@ -215,11 +262,13 @@ Expression* expression_new_match(Expression* expression, MatchCase** cases, int 
     return expr;
 }
 
-Expression* expression_new_pipe(Expression* left, Expression* right) {
+Expression* expression_new_pipe(Expression* left, Expression* right, int line, int column) {
     Expression* expr = malloc(sizeof(Expression));
     if (!expr) return NULL;
     
     expr->node_type = EXPR_PIPE;
+    expr->line = line;
+    expr->column = column;
     expr->data.pipe.left = left;
     expr->data.pipe.right = right;
     
@@ -289,7 +338,6 @@ void expression_free(Expression* expr) {
             expression_free(expr->data.pipe.right);
             break;
         default:
-            
             break;
     }
     free(expr);
@@ -330,7 +378,6 @@ void match_case_free(MatchCase* match_case) {
         free(match_case);
     }
 }
-
 
 Type* type_new_identifier(char* name) {
     Type* type = malloc(sizeof(Type));

@@ -25,6 +25,7 @@ typedef enum {
     STMT_CONST,
     STMT_RETURN,
     STMT_EXPRESSION,
+    STMT_BLOCK,
 
     TYPE_IDENTIFIER,
     TYPE_FUNCTION,
@@ -59,6 +60,8 @@ typedef struct Parameter {
 
 typedef struct Expression {
     NodeType node_type;
+    int line;
+    int column;
     union {
         struct {
             char* value;
@@ -133,6 +136,8 @@ typedef struct MatchCase {
 
 typedef struct Statement {
     NodeType node_type;
+    int line;
+    int column;
     union {
         struct {
             char* name;
@@ -148,6 +153,11 @@ typedef struct Statement {
         struct {
             Expression* expression;
         } expression_stmt;
+
+        struct {
+            struct Statement** statements;
+            int statement_count;
+        } block_stmt;
     } data;
 } Statement;
 
@@ -161,23 +171,24 @@ Program* program_new(void);
 void program_free(Program* progam);
 void program_add_statement(Program* program, Statement* stmt);
 
-Statement* statement_new_let(char* name, Type* type, Expression* value, int is_count);
-Statement* statement_new_return(Expression* return_value);
-Statement* statement_new_expression(Expression* expression);
+Statement* statement_new_let(char* name, Type* type, Expression* value, int is_const, int line, int column);
+Statement* statement_new_return(Expression* return_value, int line, int column);
+Statement* statement_new_expression(Expression* expression, int line, int column);
+Statement* statement_new_block(Statement** statements, int statement_count, int line, int column);
 void statement_free(Statement* stmt);
 
-Expression* expression_new_identifier(char* value);
-Expression* expression_new_integer_literal(int value);
-Expression* expression_new_float_literal(double value);
-Expression* expression_new_string_literal(char* value);
-Expression* expression_new_boolean_literal(int value);
-Expression* expression_new_function_literal(Parameter** params, int param_count, Type* return_type, Statement** body, int body_count);
-Expression* expression_new_call(Expression* function, Expression** arguments, int argument_count);
-Expression* expression_new_infix(Expression* left, char* operator, Expression* right);
-Expression* expression_new_prefix(char* operator, Expression* right);
-Expression* expression_new_if(Expression* condition, Statement** then_branch, int then_count, Statement** else_branch, int else_count);
-Expression* expression_new_match(Expression* expression, MatchCase** cases, int case_count);
-Expression* expression_new_pipe(Expression* left, Expression* right);
+Expression* expression_new_identifier(char* value, int line, int column);
+Expression* expression_new_integer_literal(int value, int line, int column);
+Expression* expression_new_float_literal(double value, int line, int column);
+Expression* expression_new_string_literal(char* value, int line, int column);
+Expression* expression_new_boolean_literal(int value, int line, int column);
+Expression* expression_new_function_literal(Parameter** params, int param_count, Type* return_type, Statement** body, int body_count, int line, int column);
+Expression* expression_new_call(Expression* function, Expression** arguments, int argument_count, int line, int column);
+Expression* expression_new_infix(Expression* left, char* operator, Expression* right, int line, int column);
+Expression* expression_new_prefix(char* operator, Expression* right, int line, int column);
+Expression* expression_new_if(Expression* condition, Statement** then_branch, int then_count, Statement** else_branch, int else_count, int line, int column);
+Expression* expression_new_match(Expression* expression, MatchCase** cases, int case_count, int line, int column);
+Expression* expression_new_pipe(Expression* left, Expression* right, int line, int column);
 void expression_free(Expression* expr);
 
 Parameter* parameter_new(Type* type, char* name);
