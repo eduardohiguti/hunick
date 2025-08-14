@@ -10,7 +10,6 @@ typedef enum {
     TOKEN_BOOL_TRUE,
     TOKEN_BOOL_FALSE,
     
-    
     TOKEN_LET,
     TOKEN_CONST,
     TOKEN_FUNC,
@@ -20,12 +19,10 @@ typedef enum {
     TOKEN_TYPE,
     TOKEN_RETURN,
     
-    
     TOKEN_INT_TYPE,
     TOKEN_FLOAT_TYPE,
     TOKEN_STRING_TYPE,
     TOKEN_BOOL_TYPE,
-    
     
     TOKEN_ASSIGN,      		
     TOKEN_PLUS,        		
@@ -58,7 +55,6 @@ typedef enum {
     TOKEN_RBRACE,      		
     TOKEN_LBRACKET,   		
     TOKEN_RBRACKET,    		
-    
     
     TOKEN_NEWLINE,     		
     TOKEN_EOF,         		

@@ -4,12 +4,10 @@
 #include "ast.h"
 #include <stdint.h>
 
-
 typedef struct SemanticAnalyzer SemanticAnalyzer;
 typedef struct Symbol Symbol;
 typedef struct Scope Scope;
 typedef struct TypeInfo TypeInfo;
-
 
 typedef enum {
     BUILTIN_INT,
@@ -21,7 +19,6 @@ typedef enum {
     BUILTIN_REF,       
     BUILTIN_MUT_REF 
 } BuiltinType;
-
 
 typedef enum {
     TYPECAT_BUILTIN,
@@ -60,14 +57,12 @@ typedef enum {
     BORROW_STATE_MUTABLE    
 } BorrowState;
 
-
 typedef enum {
     SYMBOL_VARIABLE,
     SYMBOL_FUNCTION,
     SYMBOL_TYPE,
     SYMBOL_PARAMETER
 } SymbolKind;
-
 
 typedef struct Symbol {
     char* name;
@@ -92,7 +87,6 @@ typedef struct Symbol {
     struct Symbol* next; 
 } Symbol;
 
-
 typedef struct Scope {
     Symbol** symbols;     
     int symbol_count;
@@ -102,7 +96,6 @@ typedef struct Scope {
     struct Scope* next;
     int lifetime_id; 
 } Scope;
-
 
 typedef enum {
     ERROR_TYPE_MISMATCH,
@@ -126,7 +119,6 @@ typedef struct SemanticError {
     int column;
     struct SemanticError* next;
 } SemanticError;
-
 
 typedef struct SemanticAnalyzer {
     Scope* current_scope;

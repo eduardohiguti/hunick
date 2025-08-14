@@ -1,4 +1,18 @@
-/out
-/tests
-*.exe
-/bin
+# Arquivos de compilação
+*.o
+*.d
+
+# Executável final
+hunick
+
+# Diretórios
+bin/
+tests/
+
+# Arquivos temporários de editores
+*~
+*.swp
+*.swo
+
+# Arquivos de sistema
+.DS_Store

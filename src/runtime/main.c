@@ -2,7 +2,7 @@
 #include <stdlib.h>
 
 #include "lexer.h"
-#include "parser.h"
+#include "include/parser.h"
 #include "evaluator.h"
 
 char* read_file(const char* path) {
