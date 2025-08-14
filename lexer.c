@@ -47,7 +47,7 @@ void lexer_free(Lexer* lexer) {
 
 static void lexer_read_char(Lexer* lexer) {
     if (lexer->read_position >= (int)strlen(lexer->input)) {
-        lexer->ch = 0; // EOF
+        lexer->ch = 0; 
     } else {
         lexer->ch = lexer->input[lexer->read_position];
     }
