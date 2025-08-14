@@ -42,6 +42,37 @@ static char* string_duplicate(const char* str) {
     return dup;
 }
 
+static Type** parser_parse_type_list(Parser* parser, int* type_count) {
+    *type_count = 0;
+    int capacity = 10;
+    Type** types = malloc(sizeof(Type*) * capacity);
+
+    if (parser_peek_token_is(parser, TOKEN_RPAREN)) {
+        parser_next_token(parser);
+        return types;
+    }
+
+    parser_next_token(parser);
+
+    types[*type_count] = parser_parse_type(parser);
+    (*type_count)++;
+
+    while (parser_peek_token_is(parser, TOKEN_COMMA)) {
+        parser_next_token(parser);
+        parser_next_token(parser);
+        types[*type_count] = parser_parse_type(parser);
+        (*type_count)++;
+    }
+
+    if (!parser_expect_peek(parser, TOKEN_RPAREN)) {
+        for (int i = 0; i < *type_count; i++) type_free(types[i]);
+        free(types);
+        return NULL;
+    }
+
+    return types;
+}
+
 Parser* parser_new(Lexer* lexer) {
     Parser* parser = malloc(sizeof(Parser));
     if (!parser) return NULL;
@@ -499,40 +530,95 @@ static Expression* parser_parse_match_expression(Parser* parser) {
 }
 
 static Type* parser_parse_type(Parser* parser) {
+    if (parser_current_token_is(parser, TOKEN_FUNC)) {
+        if (!parser_expect_peek(parser, TOKEN_LPAREN)) {
+            return NULL;
+        }
+
+        int param_count;
+        Type** param_types = parser_parse_type_list(parser, &param_count);
+        if (param_types == NULL) return NULL;
+        
+        if (!parser_expect_peek(parser, TOKEN_ARROW)) {
+            return NULL;
+        }
+
+        parser_next_token(parser);
+        Type* return_type = parser_parse_type(parser);
+
+        return type_new_function(param_types, param_count, return_type);
+    }
+
     return type_new_identifier(string_duplicate(parser->current_token->literal));
 }
 
 static Parameter** parser_parse_function_parameters(Parser* parser, int* param_count) {
-    Parameter** parameters = malloc(sizeof(Parameter*) * 10);
     *param_count = 0;
-    
+    int capacity = 8;
+    Parameter** parameters = malloc(sizeof(Parameter*) * capacity);
+    if (!parameters) return NULL;
+
     if (parser_peek_token_is(parser, TOKEN_RPAREN)) {
         parser_next_token(parser);
         return parameters;
     }
-    
+
     parser_next_token(parser);
+
+    if (!parser_current_token_is(parser, TOKEN_IDENTIFIER)) {
+        parser_add_error(parser, "expected parameter name");
+        free(parameters);
+        return NULL;
+    }
+    char* name = string_duplicate(parser->current_token->literal);
+
+    if (!parser_expect_peek(parser, TOKEN_COLON)) {
+        free(name);
+        free(parameters);
+        return NULL;
+    }
+
+    parser_next_token(parser);
+    Type* type = parser_parse_type(parser);
     
-    do {
-        Type* type = parser_parse_type(parser);
-        if (!parser_expect_peek(parser, TOKEN_IDENTIFIER)) {
-            return parameters;
+    parameters[*param_count] = parameter_new(type, name);
+    (*param_count)++;
+    while (parser_peek_token_is(parser, TOKEN_COMMA)) {
+        parser_next_token(parser);
+        parser_next_token(parser);
+
+        if (*param_count >= capacity) { 
+            capacity *= 2;
+            parameters = realloc(parameters, sizeof(Parameter*) * capacity);
         }
-        char* name = string_duplicate(parser->current_token->literal);
-        
+
+        if (!parser_current_token_is(parser, TOKEN_IDENTIFIER)) {
+            parser_add_error(parser, "expected parameter name after comma");
+            for(int i = 0; i < *param_count; i++) parameter_free(parameters[i]);
+            free(parameters);
+            return NULL;
+        }
+        name = string_duplicate(parser->current_token->literal);
+
+        if (!parser_expect_peek(parser, TOKEN_COLON)) {
+            free(name);
+            for(int i = 0; i < *param_count; i++) parameter_free(parameters[i]);
+            free(parameters);
+            return NULL;
+        }
+
+        parser_next_token(parser);
+        type = parser_parse_type(parser);
         parameters[*param_count] = parameter_new(type, name);
         (*param_count)++;
-        
-        if (parser_peek_token_is(parser, TOKEN_COMMA)) {
-            parser_next_token(parser);
-            parser_next_token(parser);
-        }
-    } while (!parser_peek_token_is(parser, TOKEN_RPAREN));
-    
-    if (!parser_expect_peek(parser, TOKEN_RPAREN)) {
-        return parameters;
     }
-    
+
+    if (!parser_expect_peek(parser, TOKEN_RPAREN)) {
+        for(int i = 0; i < *param_count; i++) parameter_free(parameters[i]);
+        free(parameters);
+        return NULL;
+    }
+
     return parameters;
 }
 
