@@ -1,0 +1,3 @@
+// We don't have a print function yet lol
+
+const GREETING: string = "Hello, World!";
