@@ -26,6 +26,8 @@ typedef enum {
     STMT_RETURN,
     STMT_EXPRESSION,
     STMT_BLOCK,
+    STMT_FOR,
+    STMT_WHILE,
 
     TYPE_IDENTIFIER,
     TYPE_FUNCTION,
@@ -158,6 +160,11 @@ typedef struct Statement {
             struct Statement** statements;
             int statement_count;
         } block_stmt;
+
+        struct {
+            Expression* condition;
+            struct Statement* body;
+        } while_stmt;
     } data;
 } Statement;
 
@@ -175,6 +182,7 @@ Statement* statement_new_let(char* name, Type* type, Expression* value, int is_c
 Statement* statement_new_return(Expression* return_value, int line, int column);
 Statement* statement_new_expression(Expression* expression, int line, int column);
 Statement* statement_new_block(Statement** statements, int statement_count, int line, int column);
+Statement* statement_new_while(Expression* condition, Statement* body, int line, int column);
 void statement_free(Statement* stmt);
 
 Expression* expression_new_identifier(char* value, int line, int column);

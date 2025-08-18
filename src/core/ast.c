@@ -85,6 +85,19 @@ Statement* statement_new_block(Statement** statements, int statement_count, int 
     return stmt;
 }
 
+Statement* statement_new_while(Expression* condition, Statement* body, int line, int column) {
+    Statement* stmt = malloc(sizeof(Statement));
+    if (!stmt) return NULL;
+    
+    stmt->node_type = STMT_WHILE;
+    stmt->line = line;
+    stmt->column = column;
+    stmt->data.while_stmt.condition = condition;
+    stmt->data.while_stmt.body = body;
+    
+    return stmt;
+}
+
 void statement_free(Statement* stmt) {
     if (!stmt) return;
     
@@ -108,6 +121,10 @@ void statement_free(Statement* stmt) {
                 statement_free(stmt->data.block_stmt.statements[i]);
             }
             free(stmt->data.block_stmt.statements);
+            break;
+        case STMT_WHILE:
+            expression_free(stmt->data.while_stmt.condition);
+            statement_free(stmt->data.while_stmt.body);
             break;
         default:
             break;

@@ -366,6 +366,8 @@ static TokenType lookup_identifier(const char* ident) {
         {"func", TOKEN_FUNC},
         {"if", TOKEN_IF},
         {"else", TOKEN_ELSE},
+        {"for", TOKEN_FOR},
+        {"while", TOKEN_WHILE},
         {"match", TOKEN_MATCH},
         {"type", TOKEN_TYPE},
         {"return", TOKEN_RETURN},

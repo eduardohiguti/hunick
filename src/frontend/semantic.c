@@ -605,6 +605,16 @@ int semantic_analyze_statement(SemanticAnalyzer* analyzer, Statement* stmt) {
                 semantic_pop_scope(analyzer);
                 return 1;
             }
+        case STMT_WHILE:
+            {
+                TypeInfo* condition_type = semantic_analyze_expression(analyzer, stmt->data.while_stmt.condition);
+                if (!condition_type || condition_type->category != TYPECAT_BUILTIN || condition_type->data.builtin != BUILTIN_BOOL) {
+                    semantic_add_error(analyzer, ERROR_TYPE_MISMATCH, "While loop condition must be a boolean", stmt->line, stmt->column);
+                    return 0;
+                }
+                
+                return semantic_analyze_statement(analyzer, stmt->data.while_stmt.body);
+            }
         default:
             semantic_add_error(analyzer, ERROR_INVALID_OPERATION, "Unknown statement type", 0, 0);
             return 0;

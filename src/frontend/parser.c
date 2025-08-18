@@ -1,4 +1,4 @@
-#include "include/parser.h"
+#include "parser.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,6 +8,7 @@ static Statement* parser_parse_statement(Parser* parser);
 static Statement* parser_parse_let_statement(Parser* parser);
 static Statement* parser_parse_const_statement(Parser* parser);
 static Statement* parser_parse_return_statement(Parser* parser);
+static Statement* parser_parse_while_statement(Parser* parser);
 static Statement* parser_parse_expression_statement(Parser* parser);
 static Expression* parser_parse_expression(Parser* parser, Precedence precedence);
 static Expression* parser_parse_prefix_expression(Parser* parser);
@@ -156,6 +157,8 @@ static Statement* parser_parse_statement(Parser* parser) {
             return parser_parse_const_statement(parser);
         case TOKEN_RETURN:
             return parser_parse_return_statement(parser);
+        case TOKEN_WHILE:
+            return parser_parse_while_statement(parser);
         case TOKEN_LBRACE:
             {
                 Token* brace_token = parser->current_token;
@@ -255,6 +258,31 @@ static Statement* parser_parse_return_statement(Parser* parser) {
     }
     
     return statement_new_return(return_value, return_token->line, return_token->column);
+}
+
+static Statement* parser_parse_while_statement(Parser* parser) {
+    Token* while_token = parser->current_token;
+    
+    if (!parser_expect_peek(parser, TOKEN_LPAREN)) {
+        return NULL;
+    }
+    
+    parser_next_token(parser);
+    Expression* condition = parser_parse_expression(parser, PRECEDENCE_LOWEST);
+    
+    if (!parser_expect_peek(parser, TOKEN_RPAREN)) {
+        return NULL;
+    }
+    
+    if (!parser_expect_peek(parser, TOKEN_LBRACE)) {
+        return NULL;
+    }
+    
+    int body_count;
+    Statement** body_stmts = parser_parse_block_statement(parser, &body_count);
+    Statement* body = statement_new_block(body_stmts, body_count, parser->current_token->line, parser->current_token->column);
+
+    return statement_new_while(condition, body, while_token->line, while_token->column);
 }
 
 static Statement* parser_parse_expression_statement(Parser* parser) {

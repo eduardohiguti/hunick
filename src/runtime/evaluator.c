@@ -85,6 +85,26 @@ static Object* eval_statement(Statement* stmt, Environment* env) {
         }
         case STMT_BLOCK:
             return eval_block_statement(stmt->data.block_stmt.statements, stmt->data.block_stmt.statement_count, env);
+        case STMT_WHILE:
+            {
+                Object* result = NULL;
+                while (1) {
+                    Object* condition = eval_expression(stmt->data.while_stmt.condition, env);
+                    if (!is_truthy(condition)) {
+                        // TODO: Liberar memória da condição se necessário
+                        break;
+                    }
+                    // TODO: Liberar memória da condição se necessário
+                    
+                    result = eval_statement(stmt->data.while_stmt.body, env);
+                    
+                    if (result != NULL && result->type == OBJ_RETURN_VALUE) {
+                        return result;
+                    }
+                    // TODO: Liberar memória do result se necessário
+                }
+                return NULL;
+            }
         default:
             return NULL;
     }

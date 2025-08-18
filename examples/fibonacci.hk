@@ -1,0 +1,27 @@
+// Exemplo de Código Hunick
+// Este arquivo demonstra algumas das principais características da linguagem,
+// como declaração de constantes, funções, condicionais e tipos.
+
+const AUTHOR: string = "HunickLang Developer";
+
+// A função 'fibonacci' calcula o n-ésimo número da sequência de Fibonacci
+// de forma recursiva.
+// Ela demonstra a declaração de função (`func`), parâmetros com tipo (`n: int`),
+// tipo de retorno (`-> int`) e a estrutura condicional `if/else`.
+func fibonacci(n: int) -> int {
+    if (n <= 1) {
+        return n;
+    } else {
+        return fibonacci(n - 1) + fibonacci(n - 2);
+    }
+}
+
+// O programa "principal" começa aqui.
+// Chamamos a função 'fibonacci' e armazenamos o resultado em uma variável.
+let result: int = fibonacci(10);
+
+// Neste ponto, a variável 'result' contém o valor 55.
+//
+// Como a linguagem ainda não possui uma função de I/O na biblioteca padrão
+// (como 'print'), não podemos exibir o resultado no console. A implementação
+// de tal função seria o próximo passo para tornar a linguagem interativa.

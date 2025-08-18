@@ -15,6 +15,8 @@ typedef enum {
     TOKEN_FUNC,
     TOKEN_IF,
     TOKEN_ELSE,
+    TOKEN_FOR,
+    TOKEN_WHILE,
     TOKEN_MATCH,
     TOKEN_TYPE,
     TOKEN_RETURN,
